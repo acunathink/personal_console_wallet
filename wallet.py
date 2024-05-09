@@ -2,30 +2,8 @@ import json
 import sys
 from datetime import datetime
 
-
-HELLO = "Wallet - application for accounting personal income and expenses"
-HINT_USAGE = (
-    '''
-    Usage: Wallet-> [COMMAND] [OPTIONS]
-
-    COMMANDS:
-        show balance - shows the total income, total expenses and
-                       balance between total income and total expenses\n
-        add [OPTION] - adds record with OPTIONS:
-             income  <amount> "description" - adds income  record
-             expense <amount> "description" - adds expense record\n
-        edit [OPTION] - edit record by id with OPTIONS:
-              income  <id> <amount> "description" - adds income  record
-              expense <id> <amount> "description" - adds expense record\n
-        search [OPTION] [OPTION] [OPTION]
-            OPTIONS:
-                -i <income>
-                -e <expense>
-                -d <date>\n
-    exit - quit programm
-    '''
-)
-DEFAULT_FILE = "data.json"
+from wallet_utils import check_category
+from wallet_const import DEFAULT_FILE, HELLO, HINT_USAGE
 
 
 class PersonalFinanceWallet:
@@ -39,7 +17,7 @@ class PersonalFinanceWallet:
                 data: dict = json.load(file)
                 print("\t\t~ wallet ready ~")
         except FileNotFoundError:
-            data: dict = {"balance": 0, "income": [], "expenses": []}
+            data: dict = {"balance": 0, "income": [], "expense": []}
             print("\t\t~ wallet empty ~")
 
         return data
@@ -50,10 +28,10 @@ class PersonalFinanceWallet:
 
     def print_balance(self, command):
         if len(command) < 2 or command[1] != 'balance':
-            print(HINT_USAGE)
+            print("Usage: Wallet-> show balance")
             return
         total_income = sum(item["amount"] for item in self.data["income"])
-        total_expenses = sum(item["amount"] for item in self.data["expenses"])
+        total_expenses = sum(item["amount"] for item in self.data["expense"])
         print(f"\n\tTotal Income: \t {total_income}")
         print(f"\tTotal Expenses:  {total_expenses}")
         print(f"\tCurrent Balance: {self.data['balance']}", end="\n\n")
@@ -67,9 +45,6 @@ class PersonalFinanceWallet:
             return
         except Exception as ex:
             print(ex)
-            return
-        if category not in ("income", "expense"):
-            print(f"Invalid category: {category}. Use 'income' or 'expense'.")
             return
 
         record = {
@@ -85,10 +60,36 @@ class PersonalFinanceWallet:
         self.save_data()
         print(f"record id: {len(self.data[category])} - successfully added")
 
-    def edit_record(self, category, index, amount, description):
-        pass
+    def edit_record(self, command):
+        try:
+            category = command[1]
+            index, amount = int(command[2]), int(command[3])
+            description = "".join(command[4:])
+        except IndexError:
+            print("There are not enough arguments provided.")
+            return
+        except Exception as ex:
+            print(ex)
+            return
+        try:
+            if description:
+                self.data[category][index]["description"] = description
+        except IndexError:
+            print(f"wrong id provided: record {index} does not exist")
+            return
 
-    def search_records(self, category=None, date=None, amount=None):
+        if category == "income":
+            self.data["balance"] -= self.data[category][index]["amount"]
+            self.data["balance"] += amount
+        elif category == "expense":
+            self.data["balance"] += self.data[category][index]["amount"]
+            self.data["balance"] -= amount
+
+        self.data[category][index]["amount"] = amount
+        self.save_data()
+        print(f"record id: {len(self.data[category])} - successfully changed")
+
+    def search_records(self, command):
         pass
 
 
@@ -103,11 +104,13 @@ if __name__ == '__main__':
             case 'show':
                 wallet.print_balance(command)
             case 'add':
-                wallet.add_record(command)
+                if check_category(command[1]):
+                    wallet.add_record(command)
             case 'edit':
-                pass
+                if check_category(command[1]):
+                    wallet.edit_record(command)
             case 'search':
-                pass
+                wallet.search_records(command[1:])
             case 'exit':
                 sys.exit()
             case _:
