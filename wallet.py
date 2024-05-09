@@ -1,5 +1,6 @@
 import json
 import sys
+from datetime import datetime
 
 
 HELLO = "Wallet - application for accounting personal income and expenses"
@@ -29,8 +30,8 @@ DEFAULT_FILE = "data.json"
 
 class PersonalFinanceWallet:
     def __init__(self) -> None:
-        self.data: dict = self.load_data()
         self.file = DEFAULT_FILE
+        self.data: dict = self.load_data()
 
     def load_data(self) -> dict:
         try:
@@ -48,10 +49,41 @@ class PersonalFinanceWallet:
             json.dump(self.data, file, indent=2)
 
     def print_balance(self, command):
-        pass
+        if len(command) < 2 or command[1] != 'balance':
+            print(HINT_USAGE)
+            return
+        total_income = sum(item["amount"] for item in self.data["income"])
+        total_expenses = sum(item["amount"] for item in self.data["expenses"])
+        print(f"\n\tTotal Income: \t {total_income}")
+        print(f"\tTotal Expenses:  {total_expenses}")
+        print(f"\tCurrent Balance: {self.data['balance']}", end="\n\n")
 
     def add_record(self, command):
-        pass
+        try:
+            category, amount = command[1], int(command[2])
+            description = "".join(command[3:])
+        except IndexError:
+            print("There are not enough arguments provided.")
+            return
+        except Exception as ex:
+            print(ex)
+            return
+        if category not in ("income", "expense"):
+            print(f"Invalid category: {category}. Use 'income' or 'expense'.")
+            return
+
+        record = {
+            "date": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            "amount": amount,
+            "description": description
+        }
+        self.data[category].append(record)
+        if category == "income":
+            self.data["balance"] += amount
+        elif category == "expense":
+            self.data["balance"] -= amount
+        self.save_data()
+        print(f"record id: {len(self.data[category])} - successfully added")
 
     def edit_record(self, category, index, amount, description):
         pass
@@ -69,9 +101,9 @@ if __name__ == '__main__':
             continue
         match command[0]:
             case 'show':
-                pass
+                wallet.print_balance(command)
             case 'add':
-                pass
+                wallet.add_record(command)
             case 'edit':
                 pass
             case 'search':
