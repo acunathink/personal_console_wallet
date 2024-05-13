@@ -8,6 +8,8 @@ from wallet_const import (COMMAND_CATEGORIES, DEFAULT_FILE, HELLO, HINT_USAGE,
 
 class PersonalFinanceWallet:
     def __init__(self, wallet_file=None) -> None:
+        """Инициализация кошелька: определение файла для хранения
+        с принудительным сохраннением в формате .json"""
         if wallet_file:
             wallet_file = wallet_file.split('.')
             if len(wallet_file) > 1:
@@ -19,6 +21,7 @@ class PersonalFinanceWallet:
         self.data: dict = self.load_data()
 
     def load_data(self) -> dict:
+        """Загрузка данных из файла либо, если его нет, создание новой базы"""
         try:
             with open(self.file, "r") as file:
                 data = json.load(file)
@@ -30,10 +33,12 @@ class PersonalFinanceWallet:
         return data
 
     def save_data(self) -> None:
+        """Сохраннение данных в файл в формате JSON"""
         with open(self.file, "w") as file:
             json.dump(self.data, file, indent=2, ensure_ascii=False)
 
     def print_balance(self, command) -> None:
+        """Вывод информации счетчиков баланса, доходов и расходов."""
         if len(command) < 2 or command[1] != 'balance':
             print("Usage: Wallet-> show balance")
             return
@@ -42,6 +47,7 @@ class PersonalFinanceWallet:
         print(f"\tCurrent Balance: {self.data['balance']}", end="\n\n")
 
     def add_record(self, command) -> None:
+        """Добавление записи в базу и сохраниение данных в файл."""
         try:
             category, amount = command[1], int(command[2])
             description = "".join(command[3:])
@@ -66,6 +72,8 @@ class PersonalFinanceWallet:
         print(f"record id: {index} - successfully added")
 
     def edit_record(self, command) -> None:
+        """Изменение полей записи идентифицированной по id.
+        Cохраниение данных в файл."""
         try:
             category = command[1]
             index, amount = int(command[2]), int(command[3])
@@ -95,6 +103,7 @@ class PersonalFinanceWallet:
         print(f"record id: {index} - successfully changed")
 
     def _get_search_filters(self, command) -> dict[str, str]:
+        """Возвращает словарь поисковых фильтров с их значениями."""
         query_filters = {}
         try:
             i = 1
@@ -108,6 +117,8 @@ class PersonalFinanceWallet:
         return query_filters
 
     def _amount_matching(self, query_filters, record) -> bool:
+        """Возвращает True
+        если значение записи не соответствует ни одному имеющемуся фильтру."""
         if (
             (query_filters.get('-a') is None
                 or record["amount"] != int(query_filters['-a']))
@@ -122,6 +133,7 @@ class PersonalFinanceWallet:
         return False
 
     def _date_matching(self, query_filters, record) -> bool:
+        """Возвращает False, если обнаружено совпадение с одним из фильтров"""
         entity_date = record["date"].split()[0]
 
         if query_filters.get('-d'):
@@ -138,6 +150,8 @@ class PersonalFinanceWallet:
         return True
 
     def _search_records(self, search_data, query_filters) -> list:
+        """Запускает соответсвующие проверки
+        при наличии флага фильтра в запросе"""
         found_records = []
         for record in search_data:
             if (
@@ -157,6 +171,7 @@ class PersonalFinanceWallet:
         return found_records
 
     def _print_record(self, record):
+        """Вывод детальной информации о записи."""
         print(
             f"\tID: {record['id']}\n",
             f"\tAmount: {record['amount']}\n",
@@ -165,6 +180,7 @@ class PersonalFinanceWallet:
         )
 
     def _print_records(self, records, category) -> None:
+        """Вывод в консоль отфильтрованных записей."""
         print(f"\n {category}:")
         if records:
             for entry in records:
@@ -173,6 +189,7 @@ class PersonalFinanceWallet:
             print("\tNo records found for the provided search criteria\n")
 
     def search_by_filters(self, command) -> None:
+        """Определение области поиска, запуск поиска соответствия фильтрам."""
         query_filters: dict[str, str] = self._get_search_filters(command)
         category: str | None = query_filters.get('-c')
         if category is not None and self.check_category(category):
@@ -185,6 +202,7 @@ class PersonalFinanceWallet:
             self._print_records(records, category)
 
     def check_category(self, category):
+        """Проверка правильности написания категории."""
         if category not in COMMAND_CATEGORIES:
             print(f"Invalid category: '{category}' -"
                   f" use '{COMMAND_CATEGORIES[0]}'"
@@ -194,6 +212,7 @@ class PersonalFinanceWallet:
 
 
 if __name__ == '__main__':
+    """Реализация интерфейса для взаимодействия через консоль."""
     print(HELLO)
     wallet_file = sys.argv.pop()
     if wallet_file == __file__:
@@ -214,8 +233,6 @@ if __name__ == '__main__':
                     wallet.edit_record(command)
             case 'search':
                 wallet.search_by_filters(command)
-            case 'serch':
-                wallet.search_records(command)
             case 'exit':
                 sys.exit()
             case _:
